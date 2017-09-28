@@ -58,29 +58,29 @@
             Server,
 
             /// <summary>
-            /// The blade.
+            /// The Client Hid.
             /// </summary>
-            Blade,
+            ClientHid,
 
             /// <summary>
-            /// The blade get feature.
+            /// The client get feature.
             /// </summary>
-            BladeGetFeature,
+            ClientGetFeature,
 
             /// <summary>
-            /// The blade set feature.
+            /// The client set feature.
             /// </summary>
-            BladeSetFeature,
+            ClientSetFeature,
 
             /// <summary>
-            /// The blade get report.
+            /// The client get report.
             /// </summary>
-            BladeGetReport,
+            ClientGetReport,
 
             /// <summary>
-            /// The blade set report.
+            /// The client set report.
             /// </summary>
-            BladeSetReport,
+            ClientSetReport,
         }
 
         /// <summary>
@@ -91,7 +91,7 @@
         /// </param>
         public override void Write(params byte[] packet)
         {
-            var data = new List<byte> { RemoteMessageTypes.Blade.ToByte(), (byte)packet.Length };
+            var data = new List<byte> { RemoteMessageTypes.ClientHid.ToByte(), (byte)packet.Length };
             data.AddRange(packet);
             this.WriteRaw(data);
         }
@@ -113,7 +113,7 @@
             }
 
             this.feature = new byte[0];
-            var toSend = new List<byte> { RemoteMessageTypes.BladeGetFeature.ToByte(), (byte)packet.Length };
+            var toSend = new List<byte> { RemoteMessageTypes.ClientGetFeature.ToByte(), (byte)packet.Length };
             toSend.AddRange(packet);
 
             this.Wait(() => this.WriteRaw(toSend), () => this.feature.Length == 0, 0, 2000);
@@ -137,7 +137,7 @@
             }
 
             this.feature = new byte[0];
-            var toSend = new List<byte> { RemoteMessageTypes.BladeSetFeature.ToByte(), (byte)packet.Length };
+            var toSend = new List<byte> { RemoteMessageTypes.ClientSetFeature.ToByte(), (byte)packet.Length };
             toSend.AddRange(packet);
 
             this.Wait(() => this.WriteRaw(toSend), () => this.feature.Length == 0, 0, 2000);
@@ -156,7 +156,7 @@
         public bool SetOutputReport(byte[] data)
         {
             this.report = new byte[0];
-            var toSend = new List<byte> { RemoteMessageTypes.BladeSetReport.ToByte(), (byte)data.Length };
+            var toSend = new List<byte> { RemoteMessageTypes.ClientSetReport.ToByte(), (byte)data.Length };
             toSend.AddRange(data);
 
             this.Wait(() => this.WriteRaw(toSend), () => this.report.Length == 0, 0, 2000);
@@ -175,7 +175,7 @@
         public byte[] GetInputReport(params byte[] data)
         {
             this.report = new byte[0];
-            var toSend = new List<byte> { RemoteMessageTypes.BladeGetReport.ToByte(), (byte)data.Length };
+            var toSend = new List<byte> { RemoteMessageTypes.ClientGetReport.ToByte(), (byte)data.Length };
             toSend.AddRange(data);
 
             this.Wait(() => this.WriteRaw(toSend), () => this.report.Length == 0, 0, 2000);
@@ -236,7 +236,7 @@
                     this.Messages.RaiseEventClass(this, Encoding.ASCII.GetString(converted));
                     break;
 
-                case RemoteMessageTypes.Blade:
+                case RemoteMessageTypes.ClientHid:
                     var packet = new HidPacket(converted);
                     this.NotifyParsers(packet);
 
@@ -244,13 +244,13 @@
                     this.OnReceived(packet);
                     break;
 
-                case RemoteMessageTypes.BladeGetFeature:
-                case RemoteMessageTypes.BladeSetFeature:
+                case RemoteMessageTypes.ClientGetFeature:
+                case RemoteMessageTypes.ClientSetFeature:
                     this.feature = converted;
                     break;
 
-                case RemoteMessageTypes.BladeGetReport:
-                case RemoteMessageTypes.BladeSetReport:
+                case RemoteMessageTypes.ClientGetReport:
+                case RemoteMessageTypes.ClientSetReport:
                     this.report = converted;
                     break;
             }
