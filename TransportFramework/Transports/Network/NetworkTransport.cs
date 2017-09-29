@@ -37,7 +37,7 @@
         /// </param>
         public NetworkTransport(string path, int port = 888) : base(path, port)
         {
-            this.BufferSize = 62;
+            this.MinimumBufferSize = 63;
         }
 
         /// <summary>
@@ -221,13 +221,14 @@
         protected override void HandlePacket(IEnumerable<byte> raw)
         {
             var data = raw.ToList();
+            var length = data[1];
 
             if (data.Count < 3)
             {
                 return;
             }
 
-            var converted = data.Skip(2).Take(data[1] + 1).ToArray();
+            var converted = data.Skip(2).Take(length).ToArray();
 
             // skip the first byte as it is our flag byte.
             switch (data[0].ToEnum<RemoteMessageTypes>())

@@ -45,6 +45,11 @@
         private uint currentReadIndex;
 
         /// <summary>
+        /// The can read.
+        /// </summary>
+        private bool canRead = true;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="HidPort"/> class.
         /// </summary>
         /// <param name="devicePath">
@@ -155,11 +160,7 @@
         /// <summary>
         /// Gets or sets The Connected state.
         /// </summary>
-        internal ConnectedStates State
-        {
-            get;
-            set;
-        }
+        internal ConnectedStates State { get; set; }
 
         /// <summary>
         /// Gets The device safe handle.
@@ -385,10 +386,7 @@
         {
             if (!this.IsOpen || this.HidInformation.IsReadOnly)
             {
-                return;
-                /*
-                                throw new Exception("Device not Connected To");
-                */
+                throw new NotConnectedException();
             }
 
             try
@@ -475,11 +473,20 @@
         /// </summary>
         private void Initialize()
         {
-            // Enable the device stream so we can write/read to and from the device async.
-            this.deviceStream = new FileStream(this.DeviceHandle, FileAccess.ReadWrite, this.HidInformation.InputReportLength, true);
-
             // Set Connected to true and start the reading Thread.
             this.IsOpen = true;
+
+            if (this.HidInformation.InputReportLength == 0)
+            {
+                return;
+            }
+
+            // Enable the device stream so we can write/read to and from the device async.
+            this.deviceStream = new FileStream(
+                this.DeviceHandle,
+                FileAccess.ReadWrite,
+                this.HidInformation.InputReportLength,
+                true);
 
             // Start the reading Task.
             Task.Factory.StartNew(this.DeviceReader, TaskCreationOptions.LongRunning);
@@ -516,6 +523,11 @@
         /// <returns>Byte[] of Read Data</returns>
         private IEnumerable<byte> ReadFromDevice()
         {
+            if (!this.canRead)
+            {
+                return new byte[0];
+            }
+
             // Create a report Buffer size is based on the Input Report Length.
             var report = new byte[this.HidInformation.InputReportLength];
 
@@ -532,7 +544,12 @@
                 this.currentReadIndex += read;
                 this.BytesToRead += read;
             }
-            catch
+            catch (UnauthorizedAccessException)
+            {
+                report = new byte[0];
+                this.canRead = false;
+            }
+            catch (Exception ex)
             {
                 this.State = ConnectedStates.Failed;
 
@@ -562,7 +579,10 @@
                     return;
                 }
 
-                this.DataReceived.RaiseEvent(this, EventArgs.Empty);
+                if (packet.Any())
+                {
+                    this.DataReceived.RaiseEvent(this, EventArgs.Empty);
+                }
             }
         }
 

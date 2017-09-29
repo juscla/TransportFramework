@@ -38,7 +38,7 @@
         {
             this.DevicePath = path;
             this.portNumber = port;
-            this.BufferSize = 1024;
+            this.MinimumBufferSize = 1024;
         }
 
         /// <summary>
@@ -57,9 +57,9 @@
         }
 
         /// <summary>
-        /// Gets or sets the buffer size.
+        /// Gets or sets the minimum buffer size.
         /// </summary>
-        public int BufferSize { get; protected set; }
+        public int MinimumBufferSize { get; protected set; }
 
         /// <summary>
         /// The connect.
@@ -143,7 +143,7 @@
         /// </summary>
         private void HandleReceive()
         {
-            var data = new byte[this.BufferSize];
+            var data = new byte[this.MinimumBufferSize];
 
             while (this.IsConnected)
             {

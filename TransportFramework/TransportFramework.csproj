@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{D67E732A-A464-41FC-A5AE-6BDEE3216450}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>TransportFramework</RootNamespace>
     <AssemblyName>TransportFramework</AssemblyName>
@@ -48,6 +48,8 @@
     <Compile Include="Helpers\UsbDetection\DeviceNotification.cs" />
     <Compile Include="Helpers\UsbDetection\UsbChangeEventArgs.cs" />
     <Compile Include="Helpers\UsbHelpers.cs" />
+    <Compile Include="Parsers\Base\ControllableParser.cs" />
+    <Compile Include="Parsers\Remote\Remote.cs" />
     <Compile Include="Transports\Network\BaseNetworkTransport.cs" />
     <Compile Include="Transports\Network\NetworkTransport.cs" />
     <Compile Include="Transports\Serial\SerialTransport.cs" />
