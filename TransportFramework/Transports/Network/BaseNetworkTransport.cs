@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Net.Sockets;
+    using System.Threading;
     using System.Threading.Tasks;
 
     using Base;
@@ -82,7 +83,14 @@
                 return false;
             }
 
-            Task.Run(() => this.HandleReceive());
+            var t = Task.Run(() => this.HandleReceive());
+
+            while (t.Status != TaskStatus.Running)
+            {
+                // wait for the reading task to start.
+                Thread.Sleep(10);
+            }
+
             return this.IsConnected;
         }
 
