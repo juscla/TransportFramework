@@ -89,7 +89,7 @@
         public static void ParseMessages(int msg, IntPtr windowParam, IntPtr pointerParam)
         {
             // we got a device change message! A USB device was inserted or removed
-            if (!msg.Equals(NativeMethods.WmDeviceChange) ||
+            if (!msg.Equals(NativeMethods.WindowsMessageDeviceChange) ||
                 UsbChangedEvent == null ||
                 windowParam == IntPtr.Zero ||
                 pointerParam == IntPtr.Zero)

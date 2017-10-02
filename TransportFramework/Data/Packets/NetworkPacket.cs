@@ -13,7 +13,7 @@
         /// <param name="data">
         /// The data.
         /// </param>
-        public NetworkPacket(IList<byte> data) : base(data)
+        public NetworkPacket(ICollection<byte> data) : base(data)
         {
             this.DataLength = data.Count;
         }

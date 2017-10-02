@@ -139,14 +139,8 @@
         {
             try
             {
-                this.deviceHandle = NativeMethods.CreateFile(
-                    this.DevicePath,
-                    NativeMethods.GenericWrite | NativeMethods.GenericRead,
-                    NativeMethods.FileShareRead | NativeMethods.FileShareWrite,
-                    IntPtr.Zero,
-                    NativeMethods.OpenExisting,
-                    NativeMethods.Normal | NativeMethods.Overlapped,
-                    IntPtr.Zero);
+                var isReadOnly = false;
+                this.deviceHandle = NativeMethods.OpenDevice(this.DevicePath, ref isReadOnly);
 
                 if (this.deviceHandle.IsInvalid)
                 {
@@ -162,17 +156,17 @@
             {
                 // ignored
             }
-
-            if (this.IsConnected)
-            {
-                Task.Factory.StartNew(this.ReadData, TaskCreationOptions.LongRunning);
-            }
-
+          
             this.DeviceStateChanged.RaiseEvent(
                 this,
                 new ConnectedStateChangedEventArgs(
                 this.IsConnected,
                 this.IsConnected ? ConnectedStates.Connected : ConnectedStates.Failed));
+
+            if (this.IsConnected)
+            {
+                Task.Factory.StartNew(this.ReadData, TaskCreationOptions.LongRunning);
+            }
 
             return this.IsConnected;
         }
@@ -281,14 +275,14 @@
         /// <returns>
         /// The <see cref="uint"/>.
         /// </returns>
-        private uint Read(byte[] data)
+        private int Read(byte[] data)
         {
-            uint bytesRead;
+            int bytesRead;
             if (NativeMethods.WinUsb_ReadPipe(
                 this.winUsbHandle,
                 this.reader.Id,
                 data,
-                (uint)data.Length,
+                data.Length,
                 out bytesRead,
                 IntPtr.Zero))
             {
@@ -317,7 +311,7 @@
             {
                 var inData = new byte[this.BufferSize];
 
-                var read = (int)this.Read(inData);
+                var read = this.Read(inData);
 
                 if (!this.IsConnected)
                 {

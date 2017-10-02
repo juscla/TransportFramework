@@ -97,7 +97,7 @@
         public const int Normal = 0x80;
 
         /// <summary>
-        /// The win-usb guid.
+        /// The WINUSB GUID.
         /// </summary>
         public static readonly Guid WinUsbGuid = new Guid("{a5dcbf10-6530-11d2-901f-00c04fb951ed}");
 
@@ -109,30 +109,30 @@
         /// </returns>
         public static IEnumerable<string> GetWinUsbPaths()
         {
-            var gHid = new Guid("{a5dcbf10-6530-11d2-901f-00c04fb951ed}");
+            var guid = WinUsbGuid;
 
-            var hInfoSet = NativeMethods.SetupDiGetClassDevs(ref gHid, null, IntPtr.Zero, DigitalInterfaces.DeviceInterface | DigitalInterfaces.Present);
+            var hInfoSet = SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, DigitalInterfaces.DeviceInterface | DigitalInterfaces.Present);
 
-            var data = new NativeMethods.SpDeviceInterfaceData
+            var data = new SpDeviceInterfaceData
             {
-                Size = Marshal.SizeOf(typeof(NativeMethods.SpDeviceInterfaceData))
+                Size = Marshal.SizeOf(typeof(SpDeviceInterfaceData))
             };
 
-            int index = 0;
+            var index = 0;
 
             var paths = new List<string>();
-            while (NativeMethods.SetupDiEnumDeviceInterfaces(hInfoSet, 0, ref gHid, index, out data))
+            while (SetupDiEnumDeviceInterfaces(hInfoSet, 0, ref guid, index, out data))
             {
-                paths.Add(NativeMethods.GetDevicePaths(ref hInfoSet, ref data));
+                paths.Add(GetDevicePaths(ref hInfoSet, ref data));
                 index++;
             }
 
-            NativeMethods.SetupDiDestroyDeviceInfoList(hInfoSet);
+            SetupDiDestroyDeviceInfoList(hInfoSet);
             return paths;
         }
 
         /// <summary>
-        /// Get all WinUsb devices currently connected to the PC. 
+        /// Get all WIN-USB devices currently connected to the PC. 
         /// </summary>
         /// <returns>
         /// The Enumerable of WinUsb Devices.
@@ -208,7 +208,7 @@
         internal static extern bool WinUsb_QueryPipe(IntPtr interfaceHandle, byte alternateInterfaceNumber, byte pipeIndex, out UsbPipeInformation pipeInformation);
 
         [DllImport("winusb.dll", SetLastError = true)]
-        internal static extern bool WinUsb_ReadPipe(IntPtr interfaceHandle, byte pipeId, byte[] buffer, uint bufferLength, out uint lengthTransferred, IntPtr overlapped);
+        internal static extern bool WinUsb_ReadPipe(IntPtr interfaceHandle, byte pipeId, byte[] buffer, int bufferLength, out int lengthTransferred, IntPtr overlapped);
 
         [DllImport("winusb.dll", SetLastError = true)]
         internal static extern bool WinUsb_WritePipe(IntPtr interfaceHandle, byte pipeId, byte[] buffer, uint bufferLength, out uint lengthTransferred, IntPtr overlapped);

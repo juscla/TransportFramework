@@ -268,7 +268,7 @@
         /// <summary>
         /// The generic read.
         /// </summary>
-        public const int GenericRead = (int)-0x80000000;
+        public const int GenericRead = -0x80000000;
 
         /// <summary>
         /// The generic write.
@@ -291,17 +291,17 @@
         public const int OpenExisting = 3;
 
         /// <summary>
-        /// Windows msg to indicate a change usb bus
+        /// Windows Message to indicate a change on the USB bus
         /// </summary>
-        internal const int WmDeviceChange = 0x0219;
+        internal const int WindowsMessageDeviceChange = 0x0219;
 
         /// <summary>
-        /// WParam for above : A device was inserted
+        /// A device was inserted
         /// </summary>
         internal const int DeviceArrival = 0x8000;
 
         /// <summary>
-        /// WParam for above : A device was removed
+        /// A device was removed
         /// </summary>
         internal const int DeviceRemoveComplete = 0x8004;
 
@@ -331,20 +331,19 @@
         /// </returns>
         internal static IEnumerable<string> GetHidPaths()
         {
-            Guid gHid;
-            HidD_GetHidGuid(out gHid);
+            HidD_GetHidGuid(out var guid);
 
-            var hInfoSet = SetupDiGetClassDevs(ref gHid, null, IntPtr.Zero, DigitalInterfaces.DeviceInterface | DigitalInterfaces.Present);
+            var hInfoSet = SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, DigitalInterfaces.DeviceInterface | DigitalInterfaces.Present);
 
             var data = new SpDeviceInterfaceData
             {
                 Size = Marshal.SizeOf(typeof(SpDeviceInterfaceData))
             };
 
-            int index = 0;
+            var index = 0;
             var paths = new List<string>();
 
-            while (SetupDiEnumDeviceInterfaces(hInfoSet, 0, ref gHid, index, out data))
+            while (SetupDiEnumDeviceInterfaces(hInfoSet, 0, ref guid, index, out data))
             {
                 paths.Add(GetDevicePaths(ref hInfoSet, ref data));
                 index++;
@@ -420,6 +419,110 @@
         }
 
         /// <summary>
+        /// The get device paths.
+        /// </summary>
+        /// <param name="pointer">
+        /// The pointer.
+        /// </param>
+        /// <param name="oInterface">
+        /// The o interface.
+        /// </param>
+        /// <returns>
+        /// The <see cref="string"/>.
+        /// </returns>
+        internal static string GetDevicePaths(ref IntPtr pointer, ref SpDeviceInterfaceData oInterface)
+        {
+            uint requiredSize = 0;
+            SetupDiGetDeviceInterfaceDetail(pointer, ref oInterface, IntPtr.Zero, 0, ref requiredSize, IntPtr.Zero);
+
+            var detail = new DeviceInterfaceDetailData
+                             {
+                                 Size = Marshal.SizeOf(typeof(IntPtr)) == 8 ? 8 : 5
+                             };
+
+            SetupDiGetDeviceInterfaceDetail(pointer, ref oInterface, ref detail, requiredSize, ref requiredSize, IntPtr.Zero);
+
+            return detail.DevicePath.Clone().ToString();
+        }
+
+        /// <summary>
+        /// The read capabilities.
+        /// </summary>
+        /// <param name="caps">
+        /// The caps.
+        /// </param>
+        /// <param name="pointer">
+        /// The pointer.
+        /// </param>
+        /// <param name="hidInformation">
+        /// The Device Information.
+        /// </param>
+        internal static void ReadDeviceCapabilities(HidCaps caps, IntPtr pointer, ref HidInformation hidInformation)
+        {
+            if (caps.NumberOutputValueCaps > 0)
+            {
+                hidInformation.OutputValues.ValueCaps = new HidValueCaps[caps.NumberOutputValueCaps];
+                HidP_GetValueCaps(
+                    HidReportType.Output,
+                    hidInformation.OutputValues.ValueCaps,
+                    ref caps.NumberOutputValueCaps,
+                    pointer);
+            }
+
+            if (caps.NumberOutputButtonCaps > 0)
+            {
+                hidInformation.OutputValues.ValueButtons = new HidButtonCaps[caps.NumberOutputButtonCaps];
+                HidP_GetButtonCaps(
+                    HidReportType.Output,
+                    hidInformation.OutputValues.ValueButtons,
+                    ref caps.NumberOutputButtonCaps,
+                    pointer);
+            }
+
+            if (caps.NumberInputValueCaps > 0)
+            {
+                hidInformation.InputValues.ValueCaps = new HidValueCaps[caps.NumberInputValueCaps];
+                HidP_GetValueCaps(
+                    HidReportType.Input,
+                    hidInformation.InputValues.ValueCaps,
+                    ref caps.NumberInputValueCaps,
+                    pointer);
+            }
+
+            if (caps.NumberInputButtonCaps > 0)
+            {
+                hidInformation.InputValues.ValueButtons = new HidButtonCaps[caps.NumberInputButtonCaps];
+                HidP_GetButtonCaps(
+                    HidReportType.Input,
+                    hidInformation.InputValues.ValueButtons,
+                    ref caps.NumberInputButtonCaps,
+                    pointer);
+            }
+
+            if (caps.NumberFeatureValueCaps > 0)
+            {
+                hidInformation.FeatureValues.ValueCaps = new HidValueCaps[caps.NumberFeatureValueCaps];
+                HidP_GetValueCaps(
+                    HidReportType.Feature,
+                    hidInformation.FeatureValues.ValueCaps,
+                    ref caps.NumberFeatureValueCaps,
+                    pointer);
+            }
+
+            if (caps.NumberFeatureButtonCaps <= 0)
+            {
+                return;
+            }
+
+            hidInformation.FeatureValues.ValueButtons = new HidButtonCaps[caps.NumberFeatureButtonCaps];
+            HidP_GetButtonCaps(
+                HidReportType.Feature,
+                hidInformation.FeatureValues.ValueButtons,
+                ref caps.NumberFeatureButtonCaps,
+                pointer);
+        }
+
+        /// <summary>
         /// The open device.
         /// </summary>
         /// <param name="deviceName">
@@ -439,14 +542,16 @@
                 FileShareWrite | FileShareRead,
                 IntPtr.Zero,
                 OpenExisting,
-                Overlapped,
+                OpenExisting | Overlapped,
                 IntPtr.Zero);
 
-            if (handle.IsInvalid)
+            if (!handle.IsInvalid)
             {
-                isReadOnly = true;
-                handle = OpenDeviceRead(deviceName);
+                return handle;
             }
+
+            isReadOnly = true;
+            handle = OpenDeviceRead(deviceName);
 
             return handle;
         }
@@ -460,7 +565,7 @@
         /// <returns>
         /// The <see cref="SafeFileHandle"/>.
         /// </returns>
-        private static SafeFileHandle OpenDeviceRead(string deviceName)
+        internal static SafeFileHandle OpenDeviceRead(string deviceName)
         {
             return CreateFile(
                 deviceName,
@@ -544,36 +649,6 @@
             int flagsAndAttributes,
             IntPtr templateFile);
 
-        /// <summary>
-        /// The get device paths.
-        /// </summary>
-        /// <param name="pointer">
-        /// The pointer.
-        /// </param>
-        /// <param name="oInterface">
-        /// The o interface.
-        /// </param>
-        /// <returns>
-        /// The <see cref="string"/>.
-        /// </returns>
-        internal static string GetDevicePaths(ref IntPtr pointer, ref SpDeviceInterfaceData oInterface)
-        {
-            uint requiredSize = 0;
-            SetupDiGetDeviceInterfaceDetail(pointer, ref oInterface, IntPtr.Zero, 0, ref requiredSize, IntPtr.Zero);
-
-            var detail = new DeviceInterfaceDetailData
-            {
-                Size = Marshal.SizeOf(typeof(IntPtr)) == 8 ? 8 : 5
-            };
-
-            SetupDiGetDeviceInterfaceDetail(pointer, ref oInterface, ref detail, requiredSize, ref requiredSize, IntPtr.Zero);
-
-            var response = detail.DevicePath.Clone().ToString();
-            detail = default(DeviceInterfaceDetailData);
-
-            return response;
-        }
-
         // Get additional details of a connected device
         [DllImport("setupapi.dll", SetLastError = true)]
         internal static extern bool SetupDiGetDeviceInterfaceDetail(IntPtr lpDeviceInfoSet, ref SpDeviceInterfaceData oInterfaceData, IntPtr lpDeviceInterfaceDetailData, uint nDeviceInterfaceDetailDataSize, ref uint nRequiredSize, IntPtr lpDeviceInfoData);
@@ -628,83 +703,6 @@
         [return: MarshalAs(UnmanagedType.I1)]
         internal static extern bool HidD_GetSerialNumberString(SafeFileHandle hDevice, byte[] buffer, int length);
 
-        /// <summary>
-        /// The read capabilities.
-        /// </summary>
-        /// <param name="caps">
-        /// The caps.
-        /// </param>
-        /// <param name="pd">
-        /// The pd.
-        /// </param>
-        /// <param name="hidInformation">
-        /// The Device Information.
-        /// </param>
-        internal static void ReadDeviceCapabilities(HidCaps caps, IntPtr pd, ref HidInformation hidInformation)
-        {
-            if (caps.NumberOutputValueCaps > 0)
-            {
-                hidInformation.OutputValues.ValueCaps = new HidValueCaps[caps.NumberOutputValueCaps];
-                HidP_GetValueCaps(
-                    HidReportType.Output,
-                    hidInformation.OutputValues.ValueCaps,
-                    ref caps.NumberOutputValueCaps,
-                    pd);
-            }
-
-            if (caps.NumberOutputButtonCaps > 0)
-            {
-                hidInformation.OutputValues.ValueButtons = new HidButtonCaps[caps.NumberOutputButtonCaps];
-                HidP_GetButtonCaps(
-                    HidReportType.Output,
-                    hidInformation.OutputValues.ValueButtons,
-                    ref caps.NumberOutputButtonCaps,
-                    pd);
-            }
-
-            if (caps.NumberInputValueCaps > 0)
-            {
-                hidInformation.InputValues.ValueCaps = new HidValueCaps[caps.NumberInputValueCaps];
-                HidP_GetValueCaps(
-                    HidReportType.Input,
-                    hidInformation.InputValues.ValueCaps,
-                    ref caps.NumberInputValueCaps,
-                    pd);
-            }
-
-            if (caps.NumberInputButtonCaps > 0)
-            {
-                hidInformation.InputValues.ValueButtons = new HidButtonCaps[caps.NumberInputButtonCaps];
-                HidP_GetButtonCaps(
-                    HidReportType.Input,
-                    hidInformation.InputValues.ValueButtons,
-                    ref caps.NumberInputButtonCaps,
-                    pd);
-            }
-
-            if (caps.NumberFeatureValueCaps > 0)
-            {
-                hidInformation.FeatureValues.ValueCaps = new HidValueCaps[caps.NumberFeatureValueCaps];
-                HidP_GetValueCaps(
-                    HidReportType.Feature,
-                    hidInformation.FeatureValues.ValueCaps,
-                    ref caps.NumberFeatureValueCaps,
-                    pd);
-            }
-
-            if (caps.NumberFeatureButtonCaps <= 0)
-            {
-                return;
-            }
-
-            hidInformation.FeatureValues.ValueButtons = new HidButtonCaps[caps.NumberFeatureButtonCaps];
-            HidP_GetButtonCaps(
-                HidReportType.Feature,
-                hidInformation.FeatureValues.ValueButtons,
-                ref caps.NumberFeatureButtonCaps,
-                pd);
-        }
-
         #endregion
 
         #region Structures
@@ -743,7 +741,7 @@
         }
 
         /// <summary>
-        /// The sp device interface data.
+        /// The device interface data.
         /// </summary>
         [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1600:ElementsMustBeDocumented", Justification = "Reviewed. Suppression is OK here.")]
         internal struct SpDeviceInterfaceData
